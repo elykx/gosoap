@@ -7,9 +7,10 @@ import (
 
 // Response Soap Response
 type Response struct {
-	Body    []byte
-	Header  []byte
-	Payload []byte
+	SoapBody    []byte
+	HttpHeaders map[string][]string
+	SoapHeader  []byte
+	SoapPayload []byte
 }
 
 // FaultError implements error interface
@@ -39,12 +40,12 @@ func IsFault(err error) bool {
 
 // Unmarshal get the body and unmarshal into the interface
 func (r *Response) Unmarshal(v interface{}) error {
-	if len(r.Body) == 0 {
+	if len(r.SoapBody) == 0 {
 		return fmt.Errorf("Body is empty")
 	}
 
 	var fault Fault
-	err := xml.Unmarshal(r.Body, &fault)
+	err := xml.Unmarshal(r.SoapBody, &fault)
 	if err != nil {
 		return fmt.Errorf("error unmarshalling the body to Fault: %v", err.Error())
 	}
@@ -53,5 +54,5 @@ func (r *Response) Unmarshal(v interface{}) error {
 		return FaultError{fault: &fault}
 	}
 
-	return xml.Unmarshal(r.Body, v)
+	return xml.Unmarshal(r.SoapBody, v)
 }

@@ -185,7 +185,7 @@ func (c *Client) Do(req *Request) (res *Response, err error) {
 		return nil, err
 	}
 
-	b, err := p.doRequest(c.Definitions.Services[0].Ports[0].SoapAddresses[0].Location)
+	r, err := p.doRequest(c.Definitions.Services[0].Ports[0].SoapAddresses[0].Location)
 	if err != nil {
 		return nil, ErrorWithPayload{err, p.Payload}
 	}
@@ -196,14 +196,20 @@ func (c *Client) Do(req *Request) (res *Response, err error) {
 	// https://stackoverflow.com/questions/6002619/unmarshal-an-iso-8859-1-xml-input-in-go
 	// https://github.com/golang/go/issues/8937
 
-	decoder := xml.NewDecoder(bytes.NewReader(b))
+	decoder := xml.NewDecoder(bytes.NewReader(r.Body))
 	decoder.CharsetReader = charset.NewReaderLabel
 	err = decoder.Decode(&soap)
 
+	headersMap := make(map[string][]string)
+	for k, v := range r.Headers {
+		headersMap[k] = v
+	}
+
 	res = &Response{
-		Body:    soap.Body.Contents,
-		Header:  soap.Header.Contents,
-		Payload: p.Payload,
+		SoapBody:    soap.Body.Contents,
+		HttpHeaders: headersMap,
+		SoapHeader:  soap.Header.Contents,
+		SoapPayload: p.Payload,
 	}
 	if err != nil {
 		return res, ErrorWithPayload{err, p.Payload}
@@ -221,7 +227,7 @@ type process struct {
 
 // doRequest makes new request to the server using the c.Method, c.URL and the body.
 // body is enveloped in Do method
-func (p *process) doRequest(url string) ([]byte, error) {
+func (p *process) doRequest(url string) (*HTTPResponseMessage, error) {
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(p.Payload))
 	if err != nil {
 		return nil, err
@@ -270,8 +276,15 @@ func (p *process) doRequest(url string) ([]byte, error) {
 		}
 		return nil, errors.New("unexpected status code: " + resp.Status)
 	}
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
 
-	return ioutil.ReadAll(resp.Body)
+	return &HTTPResponseMessage{
+		Headers: resp.Header,
+		Body:    b,
+	}, nil
 }
 
 func (p *process) httpClient() *http.Client {
@@ -293,6 +306,11 @@ func GetPayloadFromError(err error) []byte {
 		return err.Payload
 	}
 	return nil
+}
+
+type HTTPResponseMessage struct {
+	Headers http.Header
+	Body    []byte
 }
 
 // SoapEnvelope struct

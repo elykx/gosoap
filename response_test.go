@@ -18,7 +18,7 @@ func TestUnmarshal(t *testing.T) {
 		{
 			description: "case: fault error",
 			response: &Response{
-				Body: []byte(`
+				SoapBody: []byte(`
 				<soap:Fault>
 					<faultcode>soap:Server</faultcode>
 					<faultstring>Qube.Mama.SoapException: The remote server returned an error: (550) File unavailable (e.g., file not found, no access).
@@ -35,7 +35,7 @@ func TestUnmarshal(t *testing.T) {
 		{
 			description: "case: unmarshal error",
 			response: &Response{
-				Body: []byte(`
+				SoapBody: []byte(`
 					<GetJobsByIdsResponse
 						xmlns="http://webservices.qubecinema.com/XP/Usher/2009-09-29/">
 						<GetJobsByIdsResult>
@@ -60,7 +60,7 @@ func TestUnmarshal(t *testing.T) {
 		{
 			description: "case: nil error",
 			response: &Response{
-				Body: []byte(`
+				SoapBody: []byte(`
 					<GetJobsByIdsResponse
 						xmlns="http://webservices.qubecinema.com/XP/Usher/2009-09-29/">
 						<GetJobsByIdsResult>
@@ -85,7 +85,7 @@ func TestUnmarshal(t *testing.T) {
 		{
 			description: "case: body is empty",
 			response: &Response{
-				Body: []byte(``),
+				SoapBody: []byte(``),
 			},
 			decodeStruct: &struct {
 				XMLName            xml.Name `xml:"GetJobsByIdsResponse"`
