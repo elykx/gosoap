@@ -101,8 +101,8 @@ type Client struct {
 }
 
 // Call call's the method m with Params p
-func (c *Client) Call(m string, p SoapParams) (res *Response, err error) {
-	return c.Do(NewRequest(m, p))
+func (c *Client) Call(m string, p SoapParams, h http.Header) (res *Response, err error) {
+	return c.Do(NewRequest(m, p, h))
 }
 
 // CallByStruct call's by struct
@@ -251,6 +251,13 @@ func (p *process) doRequest(url string) (*HTTPResponseMessage, error) {
 	req.Header.Add("Accept", "text/xml")
 	if p.SoapAction != "" {
 		req.Header.Add("SOAPAction", p.SoapAction)
+	}
+	if p.Request.Headers != nil {
+		for key, values := range p.Request.Headers {
+			for _, value := range values {
+				req.Header.Add(key, value)
+			}
+		}
 	}
 
 	resp, err := p.httpClient().Do(req)

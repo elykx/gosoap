@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -71,7 +72,7 @@ func (r CheckVatRequest) SoapBuildRequest() *Request {
 	return NewRequest("checkVat", Params{
 		"countryCode": r.CountryCode,
 		"vatNumber":   r.VatNumber,
-	})
+	}, nil)
 }
 
 type CheckVatResponse struct {
@@ -117,7 +118,7 @@ func TestClient_Call(t *testing.T) {
 
 	params["vatNumber"] = "6388047V"
 	params["countryCode"] = "IE"
-	res, err = soap.Call("", params)
+	res, err = soap.Call("", params, nil)
 	if err == nil {
 		t.Errorf("method is empty")
 	}
@@ -126,7 +127,7 @@ func TestClient_Call(t *testing.T) {
 		t.Errorf("body is empty")
 	}
 
-	res, err = soap.Call("checkVat", params)
+	res, err = soap.Call("checkVat", params, nil)
 	if err != nil {
 		t.Errorf("error in soap call: %s", err)
 	}
@@ -141,7 +142,7 @@ func TestClient_Call(t *testing.T) {
 		t.Errorf("error not expected: %s", err)
 	}
 
-	res, err = soap.Call("CapitalCity", Params{"sCountryISOCode": "GB"})
+	res, err = soap.Call("CapitalCity", Params{"sCountryISOCode": "GB"}, nil)
 	if err != nil {
 		t.Errorf("error in soap call: %s", err)
 	}
@@ -157,7 +158,7 @@ func TestClient_Call(t *testing.T) {
 		t.Errorf("error not expected: %s", err)
 	}
 
-	res, err = soap.Call("NumberToWords", Params{"ubiNum": "23"})
+	res, err = soap.Call("NumberToWords", Params{"ubiNum": "23"}, nil)
 	if err != nil {
 		t.Errorf("error in soap call: %s", err)
 	}
@@ -173,7 +174,7 @@ func TestClient_Call(t *testing.T) {
 		t.Errorf("error not expected: %s", err)
 	}
 
-	res, err = soap.Call("Whois", Params{"DomainName": "google.com"})
+	res, err = soap.Call("Whois", Params{"DomainName": "google.com"}, nil)
 	if err != nil {
 		t.Errorf("error in soap call: %s", err)
 	}
@@ -185,14 +186,14 @@ func TestClient_Call(t *testing.T) {
 	}
 
 	c := &Client{}
-	res, err = c.Call("", Params{})
+	res, err = c.Call("", Params{}, nil)
 	if err == nil {
 		t.Errorf("error expected but nothing got.")
 	}
 
 	c.SetWSDL("://test.")
 
-	res, err = c.Call("checkVat", params)
+	res, err = c.Call("checkVat", params, nil)
 	if err == nil {
 		t.Errorf("invalid WSDL")
 	}
@@ -278,7 +279,7 @@ func TestClient_Call_NonUtf8(t *testing.T) {
 		t.Errorf("error not expected: %s", err)
 	}
 
-	_, err = soap.Call("login", Params{"client": "demo", "username": "robert", "password": "iliasdemo"})
+	_, err = soap.Call("login", Params{"client": "demo", "username": "robert", "password": "iliasdemo"}, nil)
 	if err != nil {
 		t.Errorf("error in soap call: %s", err)
 	}
@@ -308,5 +309,49 @@ func TestProcess_doRequest(t *testing.T) {
 
 	if err != nil && err.Error() != "unexpected status code: 404 Not Found" {
 		t.Errorf("unexpected error: %s", err)
+	}
+}
+
+type AuthmethodResponse struct {
+	AuthmethodResult string `xml:"AuthmethodResult"`
+}
+
+func Test_Headers(t *testing.T) {
+	var r AuthmethodResponse
+	var token string
+	soap, _ := SoapClient("http://sparkgatetest.interfax.ru/iFaxWebService/iFaxWebService.asmx", nil)
+
+	req := Request{
+		Method: "Authmethod",
+		Params: Params{
+			"Login":    "Login",
+			"Password": "Password",
+		},
+	}
+	resp, _ := soap.Do(&req)
+
+	if err := resp.Unmarshal(&r); err != nil {
+		t.Errorf("err can't be nil")
+	}
+
+	cookies := resp.HttpHeaders["Set-Cookie"]
+	for _, cookie := range cookies {
+		parts := strings.Split(cookie, ";")
+
+		for _, part := range parts {
+			if strings.HasPrefix(strings.TrimSpace(part), "ASP.NET_SessionId=") {
+				token = strings.Split(part, "=")[1]
+				break
+			}
+		}
+	}
+	req = Request{
+		Method: "Authmethod",
+		Params: Params{"Login": "Login", "Password": "Password"},
+	}
+	req.Headers["Cookie"] = []string{fmt.Sprintf("ASP.NET_SessionId=%s", token)}
+	resp, _ = soap.Do(&req)
+	if err := resp.Unmarshal(&r); err != nil {
+		t.Errorf("err can't be nil")
 	}
 }

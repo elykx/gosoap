@@ -2,18 +2,21 @@ package gosoap
 
 import (
 	"fmt"
+	"net/http"
 )
 
 // Request Soap Request
 type Request struct {
-	Method string
-	Params SoapParams
+	Method  string
+	Params  SoapParams
+	Headers http.Header
 }
 
-func NewRequest(m string, p SoapParams) *Request {
+func NewRequest(m string, p SoapParams, h http.Header) *Request {
 	return &Request{
-		Method: m,
-		Params: p,
+		Method:  m,
+		Params:  p,
+		Headers: h,
 	}
 }
 
